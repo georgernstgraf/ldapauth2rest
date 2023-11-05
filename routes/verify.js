@@ -18,68 +18,99 @@ verifyRouter.post("/", async (req, res) => {
     try {
         const user = req.body.user;
         const pass = req.body.passwd;
+        const ip = req.client.localAddress;
         if (!user || !pass)
             return res
                 .status(401)
-                .json({ error: "user and/or pass missing in request" });
-        const binddn = await getDN4user(user);
-        if (!binddn) {
+                .json({ error: "user and/or pass missing in request", ip: ip });
+        const searchResponse = await getDN4user(user);
+        if (searchResponse.code != 200) {
             return res
-                .status(401)
-                .json({ error: "user not found", ip: req.client.localAddress });
+                .status(searchResponse.code)
+                .json({ error: searchResponse.result, ip: ip });
         }
-        // TODO try bind later
-        binddn["auth"] = true;
-        return res.status(200).json(binddn);
-        const bindSuccess = await tryBind(binddn, pass);
+
+        // console.log("result so far", searchResponse.result);
+        const bindSuccess = await tryBind(searchResponse.result.dn, pass); //boolean
+        console.log(" indsuccess", bindSuccess);
         if (bindSuccess) {
-            return res.status(200).json({
-                auth: true,
-                dn: binddn,
-            });
+            searchResponse.result["auth"] = bindSuccess;
+            return res.status(200).json(searchResponse.result);
         } else {
             return res.status(401).json({
                 auth: false,
+                ip: ip,
                 error: "Invalid Creds",
-                ip: req.client.localAddress,
-                // family: req.client.localFamily,
-                // port: req.client.localPort,
             });
         }
+        return res.status(200).json(searchResponse);
     } catch (e) {
-        res.status(500).json({ message: e.message });
+        res.status(500).json({ error: e.message });
     }
 });
 function getDN4user(user) {
+    // resolve undefined for 400s {code, result}
+    // reject for 500s {new Error}
     return new Promise((resolve, reject) => {
+        if (user.includes("*")) {
+            return resolve({ code: 401, result: "Wildcards Forbidden" });
+        }
         const options = {
             filter: `(mail=${user}@${process.env.SEARCH_MAILDOMAIN})`,
             scope: "sub",
             attributes: ["dn", "mail", "description"],
         };
-        console.log("getDN4user options: ", options);
+        // console.log("getDN4user options: ", options);
         serviceClient.search(process.env.SEARCH_BASE, options, (err, res) => {
+            const dns = { results: [] };
+            res.on("searchRequest", (req) => {
+                dns["searchrequest"] = req;
+                console.log("on Request");
+            });
             res.on("searchEntry", (entry) => {
-                // console.log("entry: " + JSON.stringify(entry.pojo));
-                resolve({
+                console.log("on searchEntry");
+                dns.results.push({
                     dn: entry.pojo.objectName,
                     description: entry.pojo.attributes[0]["values"][0],
                     mail: entry.pojo.attributes[1]["values"][0],
                 });
             });
-            res.on("error", (err) => {
-                console.error("error: " + err.message);
-                resolve(undefined);
+            res.on("searchReference", (referral) => {
+                console.log("on searchReference");
+                dns["referral"] = referral;
             });
             res.on("end", (result) => {
-                // console.log("end, result: ", result);
-                resolve(undefined);
+                console.log(
+                    `on end status: ${result.status}, dns: ${dns.results.length}`
+                );
+                dns["end"] = result;
+                if (result.status != 0) {
+                    return reject(
+                        new Error(
+                            `LDAP Status ${result.status}, results: ${dns.results.length}`
+                        )
+                    );
+                }
+
+                if (dns.results.length != 1) {
+                    return resolve({
+                        code: 401,
+                        result: `${dns.results.length} Users`,
+                    });
+                }
+                resolve({ code: 200, result: dns.results[0] });
+            });
+            res.on("error", (err) => {
+                console.error("on error");
+                reject(err);
             });
         });
     });
 }
 async function tryBind(binddn, pass, cb) {
-    return true;
+    // TODO try bind later
+    console.log("tryBind");
+    return false;
     if (!cb) {
         console.error("No Callback provided");
         return;
