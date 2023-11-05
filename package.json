@@ -1,0 +1,18 @@
+{
+    "name": "spgldap2rest",
+    "version": "1.0.0",
+    "description": "expose spg ldap auth via rest",
+    "main": "app.js",
+    "scripts": {
+        "test": "node --env-file=.env app.js",
+        "debug": "node --env-file=.env app.js",
+        "dev": "node --env-file=.env --inspect --watch app.js"
+    },
+    "keywords": [],
+    "author": "GRG",
+    "license": "ISC",
+    "dependencies": {
+        "express": "^4.18.2",
+        "ldapjs": "^3.0.5"
+    }
+}
