@@ -55,10 +55,17 @@ function getDN4user(user) {
         if (user.includes("*")) {
             return resolve({ code: 401, result: "Wildcards Forbidden" });
         }
+        const attributes = [
+            "dn",
+            "mail",
+            "description",
+            "displayName",
+            "physicalDeliveryOfficeName",
+        ];
         const options = {
             filter: `(mail=${user}@${process.env.SEARCH_MAILDOMAIN})`,
             scope: "sub",
-            attributes: ["dn", "mail", "description"],
+            attributes: attributes,
         };
         // console.log("getDN4user options: ", options);
         serviceClient.search(process.env.SEARCH_BASE, options, (err, res) => {
@@ -70,6 +77,7 @@ function getDN4user(user) {
             res.on("searchEntry", (entry) => {
                 console.log("on searchEntry");
                 dns.results.push({
+                    // TODO stuff *all* attributes in here
                     dn: entry.pojo.objectName,
                     description: entry.pojo.attributes[0]["values"][0],
                     mail: entry.pojo.attributes[1]["values"][0],
@@ -110,7 +118,7 @@ function getDN4user(user) {
 async function tryBind(binddn, pass, cb) {
     // TODO try bind later
     console.log("tryBind");
-    return false;
+    return true;
     if (!cb) {
         console.error("No Callback provided");
         return;
