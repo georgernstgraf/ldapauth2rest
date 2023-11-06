@@ -30,7 +30,16 @@ verifyRouter.post("/", async (req, res) => {
                 .json({ error: searchResponse.result, ip: ip });
         }
 
-        // console.log("result so far", searchResponse.result);
+        console.log("result so far", searchResponse.result);
+        // kick out service DN to protect
+        if (
+            searchResponse.result.dn.toLowerCase() ===
+            process.env.SERVICE_DN.toLocaleLowerCase()
+        ) {
+            return res
+                .status(401)
+                .json({ error: "Service DN not allowed", ip: ip });
+        }
         const bindSuccess = await tryBind(searchResponse.result.dn, pass); //boolean
         console.log(" indsuccess", bindSuccess);
         if (bindSuccess) {
