@@ -23,6 +23,8 @@ verifyRouter.post("/", async (req, res) => {
             return res
                 .status(401)
                 .json({ error: "user and/or pass missing in request", ip: ip });
+        if (user.length < 3)
+            return res.status(401).json({ error: "user too short", ip: ip });
         const searchResponse = await getDN4user(user);
         if (searchResponse.code != 200) {
             return res
@@ -30,7 +32,7 @@ verifyRouter.post("/", async (req, res) => {
                 .json({ error: searchResponse.result, ip: ip });
         }
 
-        console.log("result so far", searchResponse.result);
+        // console.log("result so far", searchResponse.result);
         // kick out service DN to protect
         if (
             searchResponse.result.dn.toLowerCase() ===
@@ -40,6 +42,7 @@ verifyRouter.post("/", async (req, res) => {
                 .status(401)
                 .json({ error: "Service DN not allowed", ip: ip });
         }
+
         const bindSuccess = await tryBind(searchResponse.result.dn, pass); //boolean
         console.log(" indsuccess", bindSuccess);
         if (bindSuccess) {
@@ -72,7 +75,7 @@ function getDN4user(user) {
             "physicalDeliveryOfficeName",
         ];
         const options = {
-            filter: `(mail=${user}@${process.env.SEARCH_MAILDOMAIN})`,
+            filter: `(cn=${user})`,
             scope: "sub",
             attributes: attributes,
         };
