@@ -20,16 +20,18 @@ verifyRouter.post("/", async (req, res) => {
         const pass = req.body.passwd;
         const ip = req.client.localAddress;
         if (!user || !pass)
-            return res
-                .status(401)
-                .json({ error: "user and/or pass missing in request", ip: ip });
+            return res.status(401).json({
+                auth: false,
+                error: "user and/or pass missing in request",
+                ip: ip,
+            });
         if (user.length < 3)
             return res.status(401).json({ error: "user too short", ip: ip });
         const searchResponse = await getDN4user(user);
         if (searchResponse.code != 200) {
             return res
                 .status(searchResponse.code)
-                .json({ error: searchResponse.result, ip: ip });
+                .json({ auth: false, error: searchResponse.result, ip: ip });
         }
 
         // console.log("result so far", searchResponse.result);
@@ -40,19 +42,19 @@ verifyRouter.post("/", async (req, res) => {
         ) {
             return res
                 .status(401)
-                .json({ error: "Service DN not allowed", ip: ip });
+                .json({ auth: false, error: "Service DN not allowed", ip: ip });
         }
 
         const bindSuccess = await tryBind(searchResponse.result.dn, pass); //boolean
-        console.log(" indsuccess", bindSuccess);
+        console.log("after bindsuccess", bindSuccess);
+        searchResponse.result["auth"] = bindSuccess;
         if (bindSuccess) {
-            searchResponse.result["auth"] = bindSuccess;
             return res.status(200).json(searchResponse.result);
         } else {
             return res.status(401).json({
                 auth: false,
                 ip: ip,
-                error: "Invalid Creds",
+                error: "Invalid Credentials",
             });
         }
         return res.status(200).json(searchResponse);
@@ -130,7 +132,7 @@ function getDN4user(user) {
 async function tryBind(binddn, pass, cb) {
     // TODO try bind later
     console.log("tryBind");
-    return true;
+    return false;
     if (!cb) {
         console.error("No Callback provided");
         return;
