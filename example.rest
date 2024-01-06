@@ -1,0 +1,32 @@
+### invalid: too short
+POST http://localhost:42139/verify
+Content-Type: application/json
+
+{
+   "user": "gr",
+   "passwd": "manero"
+}
+### invalid: wildcard
+POST http://localhost:42139/verify
+Content-Type: application/json
+
+{
+   "user": "da*s",
+   "passwd": "springdrive"
+}
+### invalid:   field(s) missing
+POST http://localhost:42139/verify
+Content-Type: application/json
+
+{
+   "urxn": "huba"
+}
+
+### invalid: 0 users
+POST http://localhost:42139/verify
+Content-Type: application/json
+
+{
+   "user": "nosuchuser",
+   "passwd": "snowflake"
+}

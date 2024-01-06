@@ -1,0 +1,8 @@
+SERVICE_DN='CN=root,DC=example,DC=org'
+SERVICE_PW='very_secret'
+SERVICE_URL=ldaps://ldap.example.org/
+SEARCH_BASE=OU=users,DC=example,DC=org
+IP_FAIL_PERIOD=300  # seconds
+IP_FAIL_MAX=3       # block after this many failures for IP_FAIL_PERIOD seconds
+IP_FAIL_CLEANUP=600 # seconds after which an internal cleanup occurs
+LISTEN_PORT=42139

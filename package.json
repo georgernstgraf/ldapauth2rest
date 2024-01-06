@@ -5,8 +5,7 @@
     "main": "app.js",
     "scripts": {
         "test": "node --env-file=.env app.js",
-        "debug": "node --env-file=.env app.js",
-        "dev": "node --env-file=.env --inspect --watch app.js"
+        "debug": "node --env-file=.env --inspect --watch app.js"
     },
     "keywords": [],
     "author": "GRG",
