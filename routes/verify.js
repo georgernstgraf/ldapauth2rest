@@ -45,7 +45,7 @@ function getServiceClient() {
     return client;
 }
 verifyRouter.post('/', async (req, res) => {
-    const ip = req.client.localAddress;
+    const ip = req.headers['x-real-ip'] || req.client.localAddress;
     const user = req.body.user;
     const pass = req.body.passwd;
     console.log(`POST /verify from [${ip}] for user [${user}]`);
