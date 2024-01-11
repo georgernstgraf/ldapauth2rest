@@ -48,10 +48,10 @@ verifyRouter.post('/', async (req, res) => {
     const ip = req.client.localAddress;
     const user = req.body.user;
     const pass = req.body.passwd;
-    console.log(`POST /verify from IP: ${ip} for user: ${user}`);
+    console.log(`POST /verify from [${ip}] for user [${user}]`);
     try {
         if (ipTracer.isBlocked(ip)) {
-            console.log(`IP: ${ip} is blocked`);
+            console.log(`ERROR [${ip}] is blocked`);
             return res.status(401).json({
                 auth: false,
                 error: `too many failures from IP: ${ip}`,
@@ -60,7 +60,7 @@ verifyRouter.post('/', async (req, res) => {
         }
         if (!user || !pass) {
             ipTracer.registerFail(ip);
-            console.log(`IP: ${ip} user or pass missing in the request`);
+            console.log(`ERROR [${ip}] user or pass missing from request`);
             const response = new Response(
                 401,
                 'user and/or pass missing in request',
@@ -70,7 +70,7 @@ verifyRouter.post('/', async (req, res) => {
         }
         if (user.length < 3) {
             ipTracer.registerFail(ip);
-            console.log(`IP: ${ip} user too short`);
+            console.log(`ERROR [${ip}] user too short`);
             const response = new Response(401, 'user too short', ip);
             return res.status(response.code).json(response);
         }
@@ -78,7 +78,7 @@ verifyRouter.post('/', async (req, res) => {
         if (searchResponse.code != 200) {
             ipTracer.registerFail(ip);
             console.log(
-                `IP: ${ip} searchResponse.code: ${searchResponse.code} (${searchResponse.error})`
+                `ERROR [${ip}] searchResponse.code: ${searchResponse.code} (${searchResponse.error})`
             );
             return res.status(searchResponse.code).json(searchResponse);
         }
@@ -87,23 +87,23 @@ verifyRouter.post('/', async (req, res) => {
             process.env.SERVICE_DN.toLocaleLowerCase()
         ) {
             ipTracer.registerFail(ip);
-            console.log(`IP: ${ip} Service DN not allowed`);
+            console.log(`ERROR [${ip}] Service DN not allowed`);
             response = new Response(401, 'Service DN not allowed', ip);
             return res.status(response.code).json(response);
         }
         const bindSuccess = await tryBind(searchResponse.result.dn, pass); //boolean
         // searchResponse.result['auth'] = bindSuccess;
         if (bindSuccess) {
-            console.log(`IP: ${ip} credentials OK for user ${user}`);
+            console.log(`INFO [${ip}] credentials OK for user [${user}]`);
             return res.status(searchResponse.code).json(searchResponse);
         } else {
             ipTracer.registerFail(ip);
-            console.log(`IP: ${ip} Invalid Credentials for user ${user}`);
+            console.log(`ERROR [${ip}] Invalid Credentials for user [${user}]`);
             const response = new Response(401, 'Invalid Credentials', ip);
             return res.status(response.code).json(response);
         }
     } catch (e) {
-        console.error(`IP: ${ip} CATCH 500 Error: ${e.message}`);
+        console.error(`ERROR [${ip}] CATCH 500 Error: ${e.message}`);
         const response = new Response(500, e.message, ip);
         res.status(response.code).json(response);
     }
@@ -198,7 +198,8 @@ async function tryBind(binddn, pass) {
     if (!binddn || !pass) {
         return false;
     }
-    console.log(`Trying BIND with CREDS: ${binddn} / ${pass}`);
+    const hiddenpass = pass.replace(/./g, '*');
+    console.log(`Trying BIND with CREDS: ${binddn} / ${hiddenpass}`);
     const client = ldap.createClient({
         url: process.env.SERVICE_URL,
     });
