@@ -66,7 +66,7 @@ verifyRouter.post('/', async (req, res) => {
         }
         const bindSuccess = await tryBind(searchResponse.result.dn, pass); //boolean
         console.log(`bindsuccess for user ${user} is ${bindSuccess}`);
-        searchResponse.result['auth'] = bindSuccess;
+        // searchResponse.result['auth'] = bindSuccess;
         if (bindSuccess) {
             return res.status(searchResponse.code).json(searchResponse);
         } else {
