@@ -60,7 +60,7 @@ verifyRouter.post('/', async (req, res) => {
         }
         if (!user || !pass) {
             ipTracer.registerFail(ip);
-            console.log(`IP: ${ip} user or pass missing from request`);
+            console.log(`IP: ${ip} user or pass missing in the request`);
             const response = new Response(
                 401,
                 'user and/or pass missing in request',
