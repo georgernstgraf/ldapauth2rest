@@ -41,8 +41,8 @@ function getServiceClient() {
                 );
             }
         });
-        return client;
     });
+    return client;
 }
 verifyRouter.post('/', async (req, res) => {
     const ip = req.client.localAddress;
@@ -78,7 +78,7 @@ verifyRouter.post('/', async (req, res) => {
         if (searchResponse.code != 200) {
             ipTracer.registerFail(ip);
             console.log(
-                `IP: ${ip} searchResponse.code: ${searchResponse.code}`
+                `IP: ${ip} searchResponse.code: ${searchResponse.code} (${searchResponse.error})`
             );
             return res.status(searchResponse.code).json(searchResponse);
         }
