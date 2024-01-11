@@ -199,7 +199,7 @@ async function tryBind(binddn, pass) {
         return false;
     }
     const hiddenpass = pass.replace(/./g, '*');
-    console.log(`Trying BIND with CREDS: ${binddn} / ${hiddenpass}`);
+    console.log(`trying bind: [${binddn} / ${hiddenpass}]`);
     const client = ldap.createClient({
         url: process.env.SERVICE_URL,
     });
