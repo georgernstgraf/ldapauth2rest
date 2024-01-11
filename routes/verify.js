@@ -14,20 +14,23 @@ function getServiceClient() {
         reconnect: true,
         idleTimeout: 10 * 60 * 1000,
     });
-    console.log('now binding serviceClient');
-    client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, (err) => {
-        if (!err) {
-            console.log(`bound serviceClient DN: ${process.env.SERVICE_DN}`);
-        } else {
-            console.error(
-                `throwing Error binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
-            );
-            throw new Error(
-                `Binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
-            );
-        }
+    console.log('registering connect for client');
+    client.on('connect', (_) => {
+        console.log('client on connect: now binding');
+        client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, (err) => {
+            if (!err) {
+                console.log(`client bound with dn [${process.env.SERVICE_DN}]`);
+            } else {
+                console.error(
+                    `throwing Error binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
+                );
+                throw new Error(
+                    `Binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
+                );
+            }
+        });
     });
-    client.on('connect', (_) => console.log('client on connect'));
+    console.log('registering reconnect for client');
     client.on('reconnect', () => {
         console.log('Reconnecting...');
         client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, (err) => {
@@ -41,6 +44,34 @@ function getServiceClient() {
                 );
             }
         });
+    });
+    console.log('registering error for client');
+    client.on('error', (err) => {
+        console.error(`Error in serviceClient: ${err.message}`);
+    });
+    console.log('registering close for client');
+    client.on('close', () => {
+        console.log('Service Client closed');
+    });
+    console.log('registering timeout for client');
+    client.on('timeout', () => {
+        console.log('Service Client timeout');
+    });
+    console.log('registering end for client');
+    client.on('end', () => {
+        console.log('Service Client end');
+    });
+    console.log('registering idle for client');
+    client.on('idle', () => {
+        console.log('Service Client idle');
+    });
+    console.log('registering destroy for client');
+    client.on('destroy', () => {
+        console.log('Service Client destroy');
+    });
+    console.log('registering unbind for client');
+    client.on('unbind', () => {
+        console.log('Service Client unbind');
     });
     return client;
 }
