@@ -11,7 +11,7 @@ function getServiceClient() {
     const client = ldap.createClient({
         url: process.env.SERVICE_URL,
         reconnect: true,
-        idleTimeout: 15*60*1000
+        idleTimeout: 10*60*1000
     });
     client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, (err) => {
         if (!err) {
