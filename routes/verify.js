@@ -6,44 +6,36 @@ const verifyRouter = express.Router();
 const serviceClient = getServiceClient();
 console.log(`created serviceClient, but still unbound`);
 const ipTracer = new IPTracer();
+function bindCB(err) {
+    if (!err) {
+        console.log(`client bound with dn [${process.env.SERVICE_DN}]`);
+    } else {
+        console.error(
+            `throwing Error binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
+        );
+        throw new Error(
+            `Binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
+        );
+    }
+}
+
 function getServiceClient() {
     // this function throws
     console.log(`creating serviceClient`);
     const client = ldap.createClient({
         url: process.env.SERVICE_URL,
         reconnect: true,
-        idleTimeout: 10 * 60 * 1000,
+        idleTimeout: 15 * 60 * 1000, // 15 minutes
     });
     console.log('registering connect for client');
     client.on('connect', (_) => {
         console.log('client on connect: now binding');
-        client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, (err) => {
-            if (!err) {
-                console.log(`client bound with dn [${process.env.SERVICE_DN}]`);
-            } else {
-                console.error(
-                    `throwing Error binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
-                );
-                throw new Error(
-                    `Binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
-                );
-            }
-        });
+        client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
     console.log('registering reconnect for client');
     client.on('reconnect', () => {
         console.log('Reconnecting...');
-        client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, (err) => {
-            if (!err) {
-                console.log(
-                    `Re-bound serviceClient DN: ${process.env.SERVICE_DN}`
-                );
-            } else {
-                console.error(
-                    `Error re-binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
-                );
-            }
-        });
+        client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
     console.log('registering error for client');
     client.on('error', (err) => {
@@ -63,7 +55,8 @@ function getServiceClient() {
     });
     console.log('registering idle for client');
     client.on('idle', () => {
-        console.log('Service Client idle');
+        console.log('Service Client idle, trying to bind again:');
+        client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
     console.log('registering destroy for client');
     client.on('destroy', () => {
@@ -230,12 +223,18 @@ async function tryBind(binddn, pass) {
         return false;
     }
     const hiddenpass = pass.replace(/./g, '*');
-    console.log(`trying bind: [${binddn} / ${hiddenpass}]`);
+    console.log(`checking passwort trying a bind: [${binddn} / ${hiddenpass}]`);
     const client = ldap.createClient({
         url: process.env.SERVICE_URL,
     });
     return await new Promise((resolve, reject) => {
         client.bind(binddn, pass, (err) => {
+            client.unbind((e) => {
+                console.log(`unbound client`);
+                if (e) {
+                    console.error(`Error unbinding client: ${e.message}`);
+                }
+            });
             if (!err) {
                 console.log(`SUCESS in binding ${binddn}`);
                 return resolve(true);
