@@ -29,42 +29,42 @@ function getServiceClient() {
     });
     console.log('registering connect for client');
     client.on('connect', (_) => {
-        console.log('client on connect: now binding');
+        console.log('client_on_connect: binding ...');
         client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
     console.log('registering reconnect for client');
     client.on('reconnect', () => {
-        console.log('Reconnecting...');
+        console.log('client_on_reconnect: binding ...');
         client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
     console.log('registering error for client');
     client.on('error', (err) => {
-        console.error(`Error in serviceClient: ${err.message}`);
+        console.error(`client_on_error [${err.message}]`);
     });
     console.log('registering close for client');
     client.on('close', () => {
-        console.log('Service Client closed');
+        console.log('client_on_close');
     });
     console.log('registering timeout for client');
     client.on('timeout', () => {
-        console.log('Service Client timeout');
+        console.log('client_on_timeout');
     });
     console.log('registering end for client');
     client.on('end', () => {
-        console.log('Service Client end');
+        console.log('client_on_end')
     });
     console.log('registering idle for client');
     client.on('idle', () => {
-        console.log('Service Client idle, trying to bind again:');
+        console.log('client_on_idle: binding ...');
         client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
     console.log('registering destroy for client');
     client.on('destroy', () => {
-        console.log('Service Client destroy');
+        console.log('client_on_destroy');
     });
     console.log('registering unbind for client');
     client.on('unbind', () => {
-        console.log('Service Client unbind');
+        console.log('client_on_unbind');
     });
     return client;
 }
@@ -173,12 +173,7 @@ function getUserDN(user, ip) {
                 searchStatus.searchRequest.push(req);
             });
             res.on('searchEntry', (entry) => {
-                console.log(`on searchEntry: ${entry.pojo.objectName}`);
                 searchStatus.results.push(entry);
-                // TODO stuff *all* attributes in here
-                // dn: entry.pojo.objectName,
-                // description: entry.pojo.attributes[0]['values'][0],
-                // mail: entry.pojo.attributes[1]['values'][0],
             });
             res.on('searchReference', (referral) => {
                 searchStatus.referral.push(referral);
@@ -230,16 +225,16 @@ async function tryBind(binddn, pass) {
     return await new Promise((resolve, reject) => {
         client.bind(binddn, pass, (err) => {
             client.unbind((e) => {
-                console.log(`unbound client`);
+                console.log(`checkClient.unbind`);
                 if (e) {
-                    console.error(`Error unbinding client: ${e.message}`);
+                    console.error(`Error unbinding checkclient: [${e.message}]`);
                 }
             });
             if (!err) {
-                console.log(`SUCESS in binding ${binddn}`);
+                console.log(`checkclient: SUCESS in binding [${binddn}]`);
                 return resolve(true);
             } else {
-                console.log(`FAIL in binding ${binddn}`);
+                console.log(`checkClient: FAIL in binding [${binddn}]`);
                 return resolve(false);
             }
         });
