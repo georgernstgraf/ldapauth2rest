@@ -1,11 +1,11 @@
 const express = require('express');
 const ldap = require('ldapjs');
-const { IPTracer } = require('./iptracer.js');
+const { FailureTracker } = require('./failuretracker.js');
 const { Response } = require('./response.js');
 const verifyRouter = express.Router();
 const serviceClient = getServiceClient();
 console.log(`created serviceClient, but still unbound`);
-const ipTracer = new IPTracer();
+const failureTracker = new FailureTracker();
 function bindCB(err) {
     if (!err) {
         console.log(`client bound with dn [${process.env.SERVICE_DN}]`);
@@ -51,7 +51,7 @@ function getServiceClient() {
     });
     console.log('registering end for client');
     client.on('end', () => {
-        console.log('client_on_end')
+        console.log('client_on_end');
     });
     console.log('registering idle for client');
     client.on('idle', () => {
@@ -74,17 +74,21 @@ verifyRouter.post('/', async (req, res) => {
     const pass = req.body.passwd;
     console.log(`POST /verify from [${ip}] for user [${user}]`);
     try {
-        if (ipTracer.isBlocked(ip)) {
-            console.log(`ERROR [${ip}] is blocked`);
+        if (failureTracker.isBlocked(ip, user)) {
+            console.log(
+                `ERROR [${FailureTracker.getToken(ip, user)}] is blocked`
+            );
             return res.status(401).json({
                 auth: false,
-                error: `too many failures from IP: ${ip}`,
+                error: `too many failures, try again later`,
                 ip: ip,
             });
         }
         if (!user || !pass) {
-            ipTracer.registerFail(ip);
-            console.log(`ERROR [${ip}] user or pass missing in the request`);
+            failureTracker.registerFail(ip, user);
+            console.log(
+                `ERROR [${ip}:${user}] user or pass missing in the request`
+            );
             const response = new Response(
                 401,
                 'user and/or pass missing in request',
@@ -93,16 +97,16 @@ verifyRouter.post('/', async (req, res) => {
             return res.status(response.code).json(response);
         }
         if (user.length < 3) {
-            ipTracer.registerFail(ip);
-            console.log(`ERROR [${ip}] user too short`);
+            failureTracker.registerFail(ip, user);
+            console.log(`ERROR [${ip}:${user}:${pass}] user too short`);
             const response = new Response(401, 'user too short', ip);
             return res.status(response.code).json(response);
         }
         const searchResponse = await getUserDN(user, ip);
         if (searchResponse.code != 200) {
-            ipTracer.registerFail(ip);
+            failureTracker.registerFail(ip, user);
             console.log(
-                `ERROR [${ip}] searchResponse.code: ${searchResponse.code} (${searchResponse.error})`
+                `ERROR [${ip}:${user}] searchResponse.code: ${searchResponse.code} (${searchResponse.error})`
             );
             return res.status(searchResponse.code).json(searchResponse);
         }
@@ -110,8 +114,8 @@ verifyRouter.post('/', async (req, res) => {
             searchResponse.result.dn.toLowerCase() ===
             process.env.SERVICE_DN.toLocaleLowerCase()
         ) {
-            ipTracer.registerFail(ip);
-            console.log(`ERROR [${ip}] Service DN not allowed`);
+            failureTracker.registerFail(ip, user);
+            console.log(`ERROR [${ip}:${user}] Service DN not allowed`);
             response = new Response(401, 'Service DN not allowed', ip);
             return res.status(response.code).json(response);
         }
@@ -121,7 +125,7 @@ verifyRouter.post('/', async (req, res) => {
             console.log(`INFO [${ip}] credentials OK for user [${user}]`);
             return res.status(searchResponse.code).json(searchResponse);
         } else {
-            ipTracer.registerFail(ip);
+            failureTracker.registerFail(ip, user);
             console.log(`ERROR [${ip}] Invalid Credentials for user [${user}]`);
             const response = new Response(401, 'Invalid Credentials', ip);
             return res.status(response.code).json(response);
@@ -227,7 +231,9 @@ async function tryBind(binddn, pass) {
             client.unbind((e) => {
                 console.log(`checkClient.unbind`);
                 if (e) {
-                    console.error(`Error unbinding checkclient: [${e.message}]`);
+                    console.error(
+                        `Error unbinding checkclient: [${e.message}]`
+                    );
                 }
             });
             if (!err) {

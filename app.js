@@ -1,6 +1,8 @@
 console.log('START app.js');
 const express = require('express');
+const cors = require('cors');
 const app = express();
+app.use(cors());
 app.use(express.json());
 const port = Number(process.env.LISTEN_PORT);
 const { verifyRouter } = require('./routes/verify.js');
