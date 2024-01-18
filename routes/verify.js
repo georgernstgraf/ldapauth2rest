@@ -70,7 +70,7 @@ function getServiceClient() {
 }
 verifyRouter.post('/', async (req, res) => {
     const ip = req.headers['x-real-ip'] || req.client.localAddress;
-    const user = req.body.user;
+    const user = req.body.user ? req.body.user.toLowerCase() : undefined;
     const pass = req.body.passwd;
     console.log(`POST /verify from [${ip}] for user [${user}]`);
     try {
