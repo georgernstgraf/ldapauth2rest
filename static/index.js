@@ -13,8 +13,8 @@ function submit() {
         .then((res) => {
             return [res.status, res.json()];
         })
-        .then((stat, data) => {
-            displayResult(stat, data);
+        .then((arr) => {
+            displayResult(...arr);
         })
         .catch((err) => {
             displayResult(undefined, err.message);
