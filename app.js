@@ -22,7 +22,7 @@ app.use((err, req, res, next) => {
 });
 
 const { verifyRouter } = require('./routes/verify.js');
-app.use('/verify', verifyRouter);
+app.use(process.env.LOCATION, verifyRouter);
 
 const port = Number(process.env.LISTEN_PORT);
 app.listen(port, (msg) => {

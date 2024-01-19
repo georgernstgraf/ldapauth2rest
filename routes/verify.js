@@ -3,6 +3,7 @@ const ldap = require('ldapjs');
 const { FailureTracker } = require('./failuretracker.js');
 const { Response } = require('./response.js');
 const verifyRouter = express.Router();
+verifyRouter.use(express.static('./static'));
 const serviceClient = getServiceClient();
 console.log(`created serviceClient, but still unbound`);
 const failureTracker = new FailureTracker();
@@ -150,8 +151,10 @@ function getUserDN(user, ip) {
         return result;
     }
     return new Promise((resolve, reject) => {
-        if (user.includes('*')) {
-            return resolve(new Response(401, 'Wildcards Forbidden', ip));
+        if (user.match('[()*]')) {
+            return resolve(
+                new Response(401, 'no special characters please', ip)
+            );
         }
         const attributes = [
             'dn',
@@ -165,56 +168,66 @@ function getUserDN(user, ip) {
             scope: 'sub',
             attributes: attributes,
         };
-        // console.log("getDN4user options: ", options);
-        serviceClient.search(process.env.SEARCH_BASE, options, (err, res) => {
-            const searchStatus = {
-                results: [],
-                searchRequest: [],
-                searchReference: [],
-                end: [],
-            };
-            res.on('searchRequest', (req) => {
-                searchStatus.searchRequest.push(req);
-            });
-            res.on('searchEntry', (entry) => {
-                searchStatus.results.push(entry);
-            });
-            res.on('searchReference', (referral) => {
-                searchStatus.referral.push(referral);
-            });
-            res.on('end', (result) => {
-                searchStatus.end.push(result);
-                if (result.status != 0) {
-                    return resolve(
-                        new Response(
-                            401,
-                            `LDAP Status ${result.status}, results: ${searchStatus.results.length}`,
-                            ip
-                        )
-                    );
+        try {
+            // console.log("getDN4user options: ", options);
+            serviceClient.search(
+                process.env.SEARCH_BASE,
+                options,
+                (err, res) => {
+                    const searchStatus = {
+                        results: [],
+                        searchRequest: [],
+                        searchReference: [],
+                        end: [],
+                    };
+                    res.on('searchRequest', (req) => {
+                        searchStatus.searchRequest.push(req);
+                    });
+                    res.on('searchEntry', (entry) => {
+                        searchStatus.results.push(entry);
+                    });
+                    res.on('searchReference', (referral) => {
+                        searchStatus.referral.push(referral);
+                    });
+                    res.on('end', (result) => {
+                        searchStatus.end.push(result);
+                        if (result.status != 0) {
+                            return resolve(
+                                new Response(
+                                    401,
+                                    `LDAP Status ${result.status}, results: ${searchStatus.results.length}`,
+                                    ip
+                                )
+                            );
+                        }
+                        if (searchStatus.results.length != 1) {
+                            return resolve(
+                                new Response(
+                                    401,
+                                    `${searchStatus.results.length} Users`,
+                                    ip
+                                )
+                            );
+                        }
+                        return resolve(
+                            new Response(
+                                200,
+                                null,
+                                ip,
+                                resultFromResponse(searchStatus.results[0])
+                            )
+                        );
+                    });
+                    res.on('error', (err) => {
+                        console.log(`res.on.error: ${err.message}`);
+                        return resolve(new Response(500, err.message, ip));
+                    });
                 }
-                if (searchStatus.results.length != 1) {
-                    return resolve(
-                        new Response(
-                            401,
-                            `${searchStatus.results.length} Users`,
-                            ip
-                        )
-                    );
-                }
-                return resolve(
-                    new Response(
-                        200,
-                        null,
-                        ip,
-                        resultFromResponse(searchStatus.results[0])
-                    )
-                );
-            });
-            res.on('error', (err) => {
-                return resolve(new Response(500, err.message, ip));
-            });
-        });
+            );
+        } catch (e) {
+            console.log(`ERROR .. catch serviceClient search: [${e.message}]`);
+            return resolve(new Response(500, e.message, ip));
+        }
     });
 }
 async function tryBind(binddn, pass) {
