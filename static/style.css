@@ -1,6 +1,6 @@
 div {
     margin: auto 0;
-    max-width: 50%;
+    align-self: center;
     border: 1px solid;
     padding: 1em;
 }

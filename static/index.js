@@ -19,7 +19,7 @@ function submit() {
         });
 }
 async function displayResult(res) {
-    const str = JSON.stringify(await res.json()).replace(/:/g, ': ');
+    const str = JSON.stringify(await res.json(), null, 2);
     console.log(str);
     resultOut.innerHTML = `Status: ${res.status}<br>${str}`;
 }
