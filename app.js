@@ -8,7 +8,14 @@ app.use(cors());
 app.use(express.json());
 app.use((err, req, res, next) => {
     if (err.type === 'entity.parse.failed') {
-        res.status(400).json({ error: 'Invalid JSON format' });
+        const ip = req.headers['x-real-ip'] || req.client.localAddress;
+        const msg = err.message;
+        console.log(`ERROR [${msg}] from [${ip}]`);
+        res.status(400).json({
+            error: 'Invalid JSON format',
+            msg: msg,
+            ip: ip,
+        });
     } else {
         next(err);
     }
