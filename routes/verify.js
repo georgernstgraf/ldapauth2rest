@@ -3,7 +3,6 @@ const ldap = require('ldapjs');
 const { FailureTracker } = require('./failuretracker.js');
 const { Response } = require('./response.js');
 const verifyRouter = express.Router();
-verifyRouter.use(express.static('./static'));
 const serviceClient = getServiceClient();
 console.log(`created serviceClient, but still unbound`);
 const failureTracker = new FailureTracker();
