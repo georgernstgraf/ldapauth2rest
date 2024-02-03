@@ -10,8 +10,8 @@ const failureTracker = new FailureTracker();
 const failcodes = {
     '#CRI': 'Credentials Invalid',
     '#NBW': 'No Brackets or Wildcards',
-    '#SUF': 'Service User Forbidden',
     '#NU#': 'Number of Users',
+    '#SUF': 'Service User Forbidden',
     '#TMF': 'Too Many Failures',
     '#UPM': 'User/Password Missing',
     '#UTS': 'User Too Short',
