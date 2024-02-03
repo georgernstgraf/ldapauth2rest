@@ -4,14 +4,14 @@ const { FailureTracker } = require('./failuretracker.js');
 const { Response } = require('./response.js');
 const verifyRouter = express.Router();
 const serviceClient = getServiceClient();
-console.log(`created serviceClient, but still unbound`);
+console.log(`INFO created serviceClient (async)`);
 const failureTracker = new FailureTracker();
 function bindCB(err) {
     if (!err) {
-        console.log(`client bound with dn [${process.env.SERVICE_DN}]`);
+        console.log(`INFO client bound with dn [${process.env.SERVICE_DN}]`);
     } else {
         console.error(
-            `throwing Error binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
+            `ERROR binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
         );
         throw new Error(
             `Binding Service DN: ${process.env.SERVICE_DN}\n${err.message}`
@@ -21,85 +21,97 @@ function bindCB(err) {
 
 function getServiceClient() {
     // this function throws
-    console.log(`creating serviceClient`);
     const client = ldap.createClient({
         url: process.env.SERVICE_URL,
         reconnect: true,
-        idleTimeout: 15 * 60 * 1000, // 15 minutes
+        idleTimeout: process.env.IDLE_TIMEOUT * 1000, // 15 minutes
     });
-    console.log('registering connect for client');
+    console.log(
+        `INFO created serviceClient (url: ${
+            process.env.SERVICE_URL
+        }, idleTimeout: ${process.env.IDLE_TIMEOUT * 1000})`
+    );
+    console.log('INFO registering connect for client');
     client.on('connect', (_) => {
-        console.log('client_on_connect: binding ...');
+        console.log('INFO client_on_connect: binding ...');
         client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
-    console.log('registering reconnect for client');
+    console.log('INFO registering reconnect for client');
     client.on('reconnect', () => {
-        console.log('client_on_reconnect: binding ...');
+        console.log('WARN client_on_reconnect: binding ...');
         client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
-    console.log('registering error for client');
+    console.log('INFO registering error for client');
     client.on('error', (err) => {
-        console.error(`client_on_error [${err.message}]`);
+        console.error(`ERROR client_on_error [${err.message}]`);
     });
-    console.log('registering close for client');
+    console.log('INFO registering close for client');
     client.on('close', () => {
-        console.log('client_on_close');
+        console.log('INFO client_on_close');
     });
-    console.log('registering timeout for client');
+    console.log('INFO registering timeout for client');
     client.on('timeout', () => {
-        console.log('client_on_timeout');
+        console.log('INFO client_on_timeout');
     });
-    console.log('registering end for client');
+    console.log('INFO registering end for client');
     client.on('end', () => {
-        console.log('client_on_end');
+        console.log('INFO client_on_end');
     });
-    console.log('registering idle for client');
+    console.log('INFO registering idle for client');
     client.on('idle', () => {
-        console.log('client_on_idle: binding ...');
+        console.log('INFO client_on_idle: binding ...');
         client.bind(process.env.SERVICE_DN, process.env.SERVICE_PW, bindCB);
     });
-    console.log('registering destroy for client');
+    console.log('INFO registering destroy for client');
     client.on('destroy', () => {
-        console.log('client_on_destroy');
+        console.log('INFO client_on_destroy');
     });
-    console.log('registering unbind for client');
+    console.log('INFO registering unbind for client');
     client.on('unbind', () => {
-        console.log('client_on_unbind');
+        console.log('INFO client_on_unbind');
     });
     return client;
 }
 verifyRouter.post('/', async (req, res) => {
     const ip = req.headers['x-real-ip'] || req.client.localAddress;
     const user = req.body.user ? req.body.user.toLowerCase() : undefined;
-    const pass = req.body.passwd;
-    console.log(`POST /verify from [${ip}] for user [${user}]`);
+    const passwd = req.body.passwd;
+    console.log(`INFO POST /verify from [${ip}] for user [${user}]`);
     try {
         if (failureTracker.isBlocked(ip, user)) {
             console.log(
-                `ERROR [${FailureTracker.getToken(ip, user)}] is blocked`
-            );
-            return res.status(401).json({
-                auth: false,
-                error: `too many failures, try again later`,
-                ip: ip,
-            });
-        }
-        if (!user || !pass) {
-            failureTracker.registerFail(ip, user);
-            console.log(
-                `ERROR [${ip}:${user}] user or pass missing in the request`
+                `INFO [${FailureTracker.getToken(ip, user)}] is blocked`
             );
             const response = new Response(
                 401,
-                'user and/or pass missing in request',
+                'Invalid Credentials (#TMF)',
+                user,
+                ip
+            );
+            return res.status(response.code).json(response);
+        }
+        if (!user || !passwd) {
+            failureTracker.registerFail(ip, user);
+            console.log(
+                `ERROR [${ip}:${user}] user or passwd missing in request`
+            );
+            const response = new Response(
+                401,
+                'Invalid Credentials (#UPM)',
+                user,
                 ip
             );
             return res.status(response.code).json(response);
         }
         if (user.length < 3) {
             failureTracker.registerFail(ip, user);
-            console.log(`ERROR [${ip}:${user}:${pass}] user too short`);
-            const response = new Response(401, 'user too short', ip);
+            console.log(`ERROR [${ip}:${user}:${passwd}] user too short`);
+            const response = new Response(
+                401,
+                'Invalid Credentials (#UTS)',
+                user,
+                ip
+            );
             return res.status(response.code).json(response);
         }
         const searchResponse = await getUserDN(user, ip);
@@ -116,10 +128,18 @@ verifyRouter.post('/', async (req, res) => {
         ) {
             failureTracker.registerFail(ip, user);
             console.log(`ERROR [${ip}:${user}] Service DN not allowed`);
-            response = new Response(401, 'Service DN not allowed', ip);
+            response = new Response(
+                401,
+                'Invalid Credentials (#NSU)',
+                user,
+                ip
+            );
             return res.status(response.code).json(response);
         }
-        const bindSuccess = await tryBind(searchResponse.result.dn, pass); //boolean
+        const bindSuccess = await bindPossible(
+            searchResponse.result.dn,
+            passwd
+        ); //boolean
         // searchResponse.result['auth'] = bindSuccess;
         if (bindSuccess) {
             console.log(`INFO [${ip}] credentials OK for user [${user}]`);
@@ -127,19 +147,22 @@ verifyRouter.post('/', async (req, res) => {
         } else {
             failureTracker.registerFail(ip, user);
             console.log(`ERROR [${ip}] Invalid Credentials for user [${user}]`);
-            const response = new Response(401, 'Invalid Credentials', ip);
+            const response = new Response(
+                401,
+                'Invalid Credentials (#CRI)',
+                user,
+                ip
+            );
             return res.status(response.code).json(response);
         }
     } catch (e) {
         console.error(`ERROR [${ip}] CATCH 500 Error: ${e.message}`);
-        const response = new Response(500, e.message, ip);
+        const response = new Response(500, e.message, user, ip);
         res.status(response.code).json(response);
     }
 });
 function getUserDN(user, ip) {
-    // resolve undefined for 400s {code, result}
-    // reject for 500s {new Error}
-    // TODO only return response objects
+    // returns response objects
     function resultFromResponse(response) {
         const result = {};
         result.dn = response.pojo.objectName;
@@ -152,7 +175,7 @@ function getUserDN(user, ip) {
     return new Promise((resolve, reject) => {
         if (user.match('[()*]')) {
             return resolve(
-                new Response(401, 'no special characters please', ip)
+                new Response(401, 'Invalid Credentials (#NSC)', user, ip)
             );
         }
         const attributes = [
@@ -168,7 +191,6 @@ function getUserDN(user, ip) {
             attributes: attributes,
         };
         try {
-            // console.log("getDN4user options: ", options);
             serviceClient.search(
                 process.env.SEARCH_BASE,
                 options,
@@ -195,6 +217,7 @@ function getUserDN(user, ip) {
                                 new Response(
                                     401,
                                     `LDAP Status ${result.status}, results: ${searchStatus.results.length}`,
+                                    user,
                                     ip
                                 )
                             );
@@ -203,7 +226,8 @@ function getUserDN(user, ip) {
                             return resolve(
                                 new Response(
                                     401,
-                                    `${searchStatus.results.length} Users`,
+                                    `Invalid Credentials (#NU${searchStatus.results.length})`,
+                                    user,
                                     ip
                                 )
                             );
@@ -212,47 +236,55 @@ function getUserDN(user, ip) {
                             new Response(
                                 200,
                                 null,
+                                user,
                                 ip,
                                 resultFromResponse(searchStatus.results[0])
                             )
                         );
                     });
-                    res.on('error', (err) => {
-                        console.log(`res.on.error: ${err.message}`);
-                        return resolve(new Response(500, err.message, ip));
+                    res.on('error', (error) => {
+                        console.log(`ERROR res.on.error: ${error.message}`);
+                        return resolve(
+                            new Response(500, error.message, user, ip)
+                        );
                     });
                 }
             );
-        } catch (e) {
-            console.log(`ERROR .. catch serviceClient search: [${e.message}]`);
-            return resolve(new Response(500, e.message, ip));
+        } catch (error) {
+            console.log(
+                `ERROR .. catch serviceClient search: [${error.message}]`
+            );
+            return resolve(new Response(500, error.message, user, ip));
         }
     });
 }
-async function tryBind(binddn, pass) {
+async function bindPossible(binddn, pass) {
+    // returns boolean
     if (!binddn || !pass) {
         return false;
     }
     const hiddenpass = pass.replace(/./g, '*');
-    console.log(`checking passwort trying a bind: [${binddn} / ${hiddenpass}]`);
+    console.log(
+        `INFO checking passwort trying a bind: [${binddn} / ${hiddenpass}]`
+    );
     const client = ldap.createClient({
         url: process.env.SERVICE_URL,
     });
     return await new Promise((resolve, reject) => {
-        client.bind(binddn, pass, (err) => {
-            client.unbind((e) => {
-                console.log(`checkClient.unbind`);
-                if (e) {
+        client.bind(binddn, pass, (bError) => {
+            client.unbind((ubError) => {
+                console.log(`INFO checkClient.unbind`);
+                if (ubError) {
                     console.error(
-                        `Error unbinding checkclient: [${e.message}]`
+                        `ERROR unbinding checkclient: [${ubError.message}]`
                     );
                 }
             });
-            if (!err) {
-                console.log(`checkclient: SUCESS in binding [${binddn}]`);
+            if (!bError) {
+                console.log(`INFO checkclient: SUCESS in binding [${binddn}]`);
                 return resolve(true);
             } else {
-                console.log(`checkClient: FAIL in binding [${binddn}]`);
+                console.log(`INFO checkClient: FAIL in binding [${binddn}]`);
                 return resolve(false);
             }
         });

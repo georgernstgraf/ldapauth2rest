@@ -27,5 +27,5 @@ app.use(process.env.LOCATION, verifyRouter);
 const port = Number(process.env.LISTEN_PORT);
 app.listen(port, (msg) => {
     if (msg) console.error(msg);
-    else console.log(`express app listens on Port ${port}`);
+    else console.log(`INFO app listens on Port ${port}`);
 });
