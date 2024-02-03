@@ -8,27 +8,27 @@ class FailureTracker {
     isBlocked(ip, user) {
         //return Boolean;
         // cleanup the map occasionally
-        const token = FailureTracker.getToken(ip, user);
+        const key = FailureTracker.getToken(ip, user);
         if (
             Date.now() - this.#lastCleaned >
             process.env.IP_FAIL_CLEANUP * 1000
         ) {
-            this.cleanupAll();
+            this.cleanupMap();
         }
         // no failure registered
-        if (!this.#map.has(token)) {
+        if (!this.#map.has(key)) {
             return false;
         }
-        let entry = this.#map.get(token);
-        entry = FailureTracker.cleanup(entry);
+        let entry = this.#map.get(key);
+        entry = FailureTracker.cleanupEntry(entry);
         if (entry.length == 0) {
-            this.#map.delete(token);
+            this.#map.delete(key);
             return false;
         }
-        this.#map.set(token, entry);
+        this.#map.set(key, entry);
 
         if (entry.length >= process.env.IP_FAIL_MAX) {
-            this.registerFail(token);
+            this.registerFail(key);
             return true;
         } else {
             return false;
@@ -42,18 +42,24 @@ class FailureTracker {
         }
         this.#map.get(token).push(Date.now());
     }
-    cleanupAll() {
+    cleanupMap() {
         for (let key of this.#map.keys()) {
-            this.#map.set(key, FailureTracker.cleanup(this.#map.get(key)));
+            this.#map.set(key, FailureTracker.cleanupEntry(this.#map.get(key)));
         }
     }
-    static cleanup(arr) {
+    static cleanupEntry(arr) {
         const now = Date.now();
         return arr.filter((time) => {
             return now - time < process.env.IP_FAIL_PERIOD * 1000;
         });
     }
     static getToken(ip, user) {
+        if (user === undefined) {
+            // go easy on undefined users, they don't hurt
+            user = (10 + Math.floor(Math.random() * 3))
+                .toString(36)
+                .toUpperCase();
+        }
         return `${ip}:${user}`;
     }
 }
