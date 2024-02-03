@@ -7,6 +7,16 @@ verifyRouter.use(express.static('./static'));
 const serviceClient = getServiceClient();
 console.log(`INFO created serviceClient (async)`);
 const failureTracker = new FailureTracker();
+
+const failcodes = {
+    '#CRI': 'Credentials Invalid',
+    '#NBW': 'No Brackets or Wildcards',
+    '#SUF': 'Service User Forbidden',
+    '#NU#': 'Number of Users',
+    '#TMF': 'Too Many Failures',
+    '#UPM': 'User/Password Missing',
+    '#UTS': 'User Too Short',
+};
 function bindCB(err) {
     if (!err) {
         console.log(`INFO client bound with dn [${process.env.SERVICE_DN}]`);
@@ -115,6 +125,17 @@ verifyRouter.post('/', async (req, res) => {
             );
             return res.status(response.code).json(response);
         }
+        if (process.env.SERVICE_DN.toLowerCase().includes(user)) {
+            failureTracker.registerFail(ip, user);
+            console.log(`ERROR [${ip}:${user}] Service DN not allowed`);
+            response = new Response(
+                401,
+                'Invalid Credentials (#SUF)',
+                user,
+                ip
+            );
+            return res.status(response.code).json(response);
+        }
         const searchResponse = await getUserDN(user, ip);
         if (searchResponse.code != 200) {
             failureTracker.registerFail(ip, user);
@@ -122,20 +143,6 @@ verifyRouter.post('/', async (req, res) => {
                 `ERROR [${ip}:${user}] searchResponse.code: ${searchResponse.code} (${searchResponse.error})`
             );
             return res.status(searchResponse.code).json(searchResponse);
-        }
-        if (
-            searchResponse.result.dn.toLowerCase() ===
-            process.env.SERVICE_DN.toLocaleLowerCase()
-        ) {
-            failureTracker.registerFail(ip, user);
-            console.log(`ERROR [${ip}:${user}] Service DN not allowed`);
-            response = new Response(
-                401,
-                'Invalid Credentials (#NSU)',
-                user,
-                ip
-            );
-            return res.status(response.code).json(response);
         }
         const bindSuccess = await bindPossible(
             searchResponse.result.dn,
@@ -176,7 +183,7 @@ function getUserDN(user, ip) {
     return new Promise((resolve, reject) => {
         if (user.match('[()*]')) {
             return resolve(
-                new Response(401, 'Invalid Credentials (#NSC)', user, ip)
+                new Response(401, 'Invalid Credentials (#NBW)', user, ip)
             );
         }
         const attributes = [
