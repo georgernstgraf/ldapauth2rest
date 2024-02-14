@@ -5,6 +5,10 @@ div {
     padding: 1em;
 }
 
+pre {
+    white-space: pre-wrap;
+}
+
 .flex-container {
     display: flex;
     justify-content: space-around;
