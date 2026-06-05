@@ -56,11 +56,11 @@ error: {{error}}
 user: {{user}}
 ip: {{ip}}
 
-{{#if result}}dn: {{dn}}
+{{#with result}}dn: {{dn}}
 mail: {{mail}}
 displayName: {{displayName}}
 physicalDeliveryOfficeName: {{physicalDeliveryOfficeName}}
-description: {{description}}{{/if}}{{/if}}
+description: {{description}}{{/with}}{{/if}}
 {{#unless auth}}{{error}}{{/unless}}
         </template>
 
