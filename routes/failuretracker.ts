@@ -1,25 +1,24 @@
 class FailureTracker {
-    #map;
-    #lastCleaned;
+    #map: Map<string, number[]>;
+    #lastCleaned: number;
+
     constructor() {
         this.#map = new Map();
         this.#lastCleaned = Date.now();
     }
-    isBlocked(ip, user) {
-        //return Boolean;
-        // cleanup the map occasionally
+
+    isBlocked(ip: string, user?: string): boolean {
         const key = FailureTracker.getToken(ip, user);
         if (
             Date.now() - this.#lastCleaned >
-            process.env.IP_FAIL_CLEANUP * 1000
+            Number(Deno.env.get("IP_FAIL_CLEANUP")) * 1000
         ) {
             this.cleanupMap();
         }
-        // no failure registered
         if (!this.#map.has(key)) {
             return false;
         }
-        let entry = this.#map.get(key);
+        let entry = this.#map.get(key)!;
         entry = FailureTracker.cleanupEntry(entry);
         if (entry.length == 0) {
             this.#map.delete(key);
@@ -27,35 +26,38 @@ class FailureTracker {
         }
         this.#map.set(key, entry);
 
-        if (entry.length >= process.env.IP_FAIL_MAX) {
-            this.registerFail(key);
+        if (entry.length >= Number(Deno.env.get("IP_FAIL_MAX"))) {
+            this.registerFail(ip, user);
             return true;
         } else {
             return false;
         }
     }
-    registerFail(ip, user) {
+
+    registerFail(ip: string, user?: string): void {
         const token = FailureTracker.getToken(ip, user);
         if (!this.#map.has(token)) {
             this.#map.set(token, [Date.now()]);
             return;
         }
-        this.#map.get(token).push(Date.now());
+        this.#map.get(token)!.push(Date.now());
     }
-    cleanupMap() {
-        for (let key of this.#map.keys()) {
-            this.#map.set(key, FailureTracker.cleanupEntry(this.#map.get(key)));
+
+    cleanupMap(): void {
+        for (const key of this.#map.keys()) {
+            this.#map.set(key, FailureTracker.cleanupEntry(this.#map.get(key)!));
         }
     }
-    static cleanupEntry(arr) {
+
+    static cleanupEntry(arr: number[]): number[] {
         const now = Date.now();
         return arr.filter((time) => {
-            return now - time < process.env.IP_FAIL_PERIOD * 1000;
+            return now - time < Number(Deno.env.get("IP_FAIL_PERIOD")) * 1000;
         });
     }
-    static getToken(ip, user) {
+
+    static getToken(ip: string, user?: string): string {
         if (user === undefined) {
-            // go easy on undefined users, they don't hurt
             user = (10 + Math.floor(Math.random() * 3))
                 .toString(36)
                 .toUpperCase();
@@ -63,4 +65,5 @@ class FailureTracker {
         return `${ip}:${user}`;
     }
 }
-exports.FailureTracker = FailureTracker;
+
+export { FailureTracker };

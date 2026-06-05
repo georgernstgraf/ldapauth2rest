@@ -11,7 +11,7 @@ function displayLoading(loading = true) {
     }
     body.style.cursor = 'default';
 }
-function submit() {
+function doSubmit() {
     displayLoading();
     console.log(`submit: ${userInput.value}`);
     const o = { user: userInput.value, passwd: passInput.value };
@@ -29,7 +29,7 @@ function submit() {
         .catch((err) => {
             displayResult(
                 undefined,
-                new Promise((resolve, reject) => {
+                new Promise((resolve, _reject) => {
                     resolve(err.message);
                 })
             );

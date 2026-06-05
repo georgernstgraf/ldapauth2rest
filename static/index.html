@@ -5,23 +5,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.indigo.min.css">
     <script src="index.js" defer></script>
-    <link rel="stylesheet" href="style.css">
 </head>
 
-<body class="flex-container">
-    <div class="flex-container">
-        <label>Username:
-            <input type="text" id="username" name="username">
-        </label><br>
-        <label>Password:
-            <input type="password" id="password" name="password">
-        </label><br>
-        <input type="submit" value="Submit" onclick="submit()">
-    </div>
-    <div id="outbox">
-        <pre id="result">No Result yet</pre>
-    </div>
+<body>
+    <main>
+        <form onsubmit="doSubmit(); return false;">
+            <label>Username
+                <input type="text" id="username" name="username" autofocus>
+            </label>
+            <label>Password
+                <input type="password" id="password" name="password">
+            </label>
+            <input type="submit" value="Submit">
+        </form>
+        <div id="outbox">
+            <pre id="result">No Result yet</pre>
+        </div>
+    </main>
 </body>
 
 </html>
