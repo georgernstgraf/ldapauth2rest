@@ -94,7 +94,7 @@ verifyRouter.post("/", async (req: express.Request, res: express.Response) => {
     try {
         if (failureTracker.isBlocked(ip, user)) {
             console.log(
-                `INFO [${FailureTracker.getToken(ip, user!)}] is blocked`,
+                `INFO [${FailureTracker.getMapKey(ip, user!)}] is blocked`,
             );
             const response = new Response(
                 401,

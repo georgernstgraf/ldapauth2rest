@@ -7,8 +7,8 @@ class FailureTracker {
         this.#lastCleaned = Date.now();
     }
 
-    isBlocked(ip: string, user?: string): boolean {
-        const key = FailureTracker.getToken(ip, user);
+    isBlocked(ip: string, user: string): boolean {
+        const key = FailureTracker.getMapKey(ip, user);
         if (
             Date.now() - this.#lastCleaned >
             Number(Deno.env.get("IP_FAIL_CLEANUP")) * 1000
@@ -34,13 +34,13 @@ class FailureTracker {
         }
     }
 
-    registerFail(ip: string, user?: string): void {
-        const token = FailureTracker.getToken(ip, user);
-        if (!this.#map.has(token)) {
-            this.#map.set(token, [Date.now()]);
+    registerFail(ip: string, user: string): void {
+        const key = FailureTracker.getMapKey(ip, user);
+        if (!this.#map.has(key)) {
+            this.#map.set(key, [Date.now()]);
             return;
         }
-        this.#map.get(token)!.push(Date.now());
+        this.#map.get(key)!.push(Date.now());
     }
 
     cleanupMap(): void {
@@ -56,12 +56,7 @@ class FailureTracker {
         });
     }
 
-    static getToken(ip: string, user?: string): string {
-        if (user === undefined) {
-            user = (10 + Math.floor(Math.random() * 3))
-                .toString(36)
-                .toUpperCase();
-        }
+    static getMapKey(ip: string, user: string): string {
         return `${ip}:${user}`;
     }
 }
