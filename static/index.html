@@ -40,7 +40,7 @@
               hx-target="#result"
               hx-swap="innerHTML"
               hx-indicator="body"
-              mustache-template="result-template">
+              handlebars-template="result-template">
             <label>Username
                 <input type="text" name="user" autofocus>
             </label>
@@ -51,17 +51,16 @@
         </form>
 
         <template id="result-template">
-{{#auth}}auth: {{auth}}
+{{#if auth}}auth: {{auth}}
 error: {{error}}
 user: {{user}}
 ip: {{ip}}
-
-{{#result}}dn: {{dn}}
+{{#if result}}dn: {{dn}}
 mail: {{mail}}
 displayName: {{displayName}}
 physicalDeliveryOfficeName: {{physicalDeliveryOfficeName}}
-description: {{description}}{{/result}}{{/auth}}
-{{^auth}}{{error}}{{/auth}}
+description: {{description}}{{/if}}{{/if}}
+{{#unless auth}}{{error}}{{/unless}}
         </template>
 
         <div id="outbox">
@@ -72,7 +71,7 @@ description: {{description}}{{/result}}{{/auth}}
     <script src="htmx.js"></script>
     <script src="json-enc.js"></script>
     <script src="client-side-templates.js"></script>
-    <script src="mustache.js"></script>
+    <script src="handlebars.js"></script>
 </body>
 
 </html>
