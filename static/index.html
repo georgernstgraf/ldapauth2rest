@@ -4,26 +4,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true}]}'>
     <title>Verify</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.indigo.min.css">
-    <script src="index.js" defer></script>
+    <link rel="stylesheet" href="pico.classless.slate.css">
+    <style>
+        :root {
+            --pico-font-size: 90%;
+            --pico-form-element-spacing-vertical: 0.3rem;
+            --pico-form-element-spacing-horizontal: 0.75rem;
+            --pico-border-radius: 0.4rem;
+            --pico-typography-spacing-vertical: 0.75rem;
+        }
+        main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        form {
+            max-width: 24rem;
+            width: 100%;
+        }
+        body.htmx-request {
+            cursor: wait;
+        }
+    </style>
 </head>
 
 <body>
     <main>
-        <form onsubmit="doSubmit(); return false;">
+        <form hx-post="/verify"
+              hx-ext="json-enc,client-side-templates"
+              hx-target="#result"
+              hx-swap="innerHTML"
+              hx-indicator="body"
+              mustache-template="result-template">
             <label>Username
-                <input type="text" id="username" name="username" autofocus>
+                <input type="text" name="user" autofocus>
             </label>
             <label>Password
-                <input type="password" id="password" name="password">
+                <input type="password" name="passwd">
             </label>
             <input type="submit" value="Submit">
         </form>
+
+        <template id="result-template">
+{{#auth}}auth: {{auth}}
+error: {{error}}
+user: {{user}}
+ip: {{ip}}
+{{#result}}dn: {{dn}}
+mail: {{mail}}
+displayName: {{displayName}}
+physicalDeliveryOfficeName: {{physicalDeliveryOfficeName}}
+description: {{description}}{{/result}}{{/auth}}
+{{^auth}}{{error}}{{/auth}}
+        </template>
+
         <div id="outbox">
             <pre id="result">No Result yet</pre>
         </div>
     </main>
+
+    <script src="htmx.js"></script>
+    <script src="json-enc.js"></script>
+    <script src="client-side-templates.js"></script>
+    <script src="mustache.js"></script>
 </body>
 
 </html>
