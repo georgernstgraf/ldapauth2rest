@@ -1,3 +1,4 @@
 .env
 *.rest
 deno.lock
+node_modules/
